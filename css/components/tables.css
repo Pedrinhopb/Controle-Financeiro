@@ -1,0 +1,19 @@
+table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed;}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--text-secondary);border-bottom:1px solid var(--border);padding:9px 6px;position:sticky;top:0;background:color-mix(in srgb,var(--surface) 94%,var(--accent) 6%);z-index:1;}
+td{padding:8px 6px;border-bottom:1px solid var(--border);vertical-align:middle;word-break:break-word;}
+tr:last-child td{border-bottom:none;}
+tbody tr{transition:background .12s ease,box-shadow .12s ease;}
+tbody tr:hover{background:var(--surface-2);}
+tr.clickable{cursor:pointer;} tr.clickable:hover{background:var(--surface-2);}
+.tag{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;display:inline-block;}
+.tag.receita{background:rgba(22,201,141,.13);color:var(--receita-2);}.tag.fixa{background:rgba(241,78,99,.13);color:var(--despesa-2);}.tag.variavel{background:rgba(245,166,35,.15);color:var(--divida-2);}
+.tag.compra{background:rgba(241,78,99,.13);color:var(--despesa-2);}.tag.pagamento{background:rgba(22,201,141,.13);color:var(--receita-2);}
+.tag.vencido{background:rgba(241,78,99,.15);color:var(--despesa-2);}.tag.vencehoje{background:rgba(245,166,35,.18);color:var(--divida-2);}.tag.avencer{background:rgba(22,201,141,.13);color:var(--receita-2);}
+.del,.edit{border:none;cursor:pointer;font-size:14px;width:26px;height:26px;border-radius:50%;line-height:1;display:inline-flex;align-items:center;justify-content:center;font-weight:700;transition:all .15s ease;}
+.del{background:rgba(241,78,99,.12);color:var(--despesa-2);}.del:hover{background:var(--despesa-1);color:#fff;transform:translateY(-1px);box-shadow:0 10px 14px -12px rgba(210,47,68,.7);}
+.edit{background:var(--accent-soft);color:var(--accent);font-size:13px;}.edit:hover{background:var(--accent);color:#fff;transform:translateY(-1px);box-shadow:0 10px 16px -14px rgba(109,92,224,.8);}
+.empty{padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;}
+.tablewrap{max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);box-shadow:0 10px 24px -24px rgba(15,17,35,.45);}
+.tablewrap table{border-collapse:separate;border-spacing:0;}
+.busca-lancamentos{margin:10px 0 6px;}.busca-lancamentos input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2);color:var(--text-primary);font-size:13px;font-family:var(--font-body);transition:border-color .15s ease,box-shadow .15s ease;}
+.busca-lancamentos input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,92,224,.12);}.busca-lancamentos input::placeholder{color:var(--text-muted);}

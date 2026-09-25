@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Controle Financeiro">
+<title>Controle Financeiro — Pedro & Maria</title>
+<link rel="manifest" href="manifest.json">
+<script>
+  // aplica o tema salvo o quanto antes, pra não "piscar" claro antes de virar escuro
+  try{
+    const temaSalvo = localStorage.getItem('cf-tema');
+    if(temaSalvo === 'dark') {
+      document.documentElement.setAttribute('data-theme','dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    const statusMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if(themeMeta) themeMeta.setAttribute('content', temaSalvo === 'dark' ? '#171B34' : '#FFFFFF');
+    if(statusMeta) statusMeta.setAttribute('content', temaSalvo === 'dark' ? 'black-translucent' : 'default');
+  }catch(e){}
+</script>
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="/src/bootstrap.ts"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div class="shell">
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="modal-overlay show" id="loginOverlay">
+  <div class="sync-modal login-modal">
+    <h3 id="loginTitulo">🔐 Entrar</h3>
+    <p id="loginDescricao">Acesse sua conta para ver seus dados financeiros.</p>
+
+    <button type="button" class="btn-google" id="btnLoginGoogle">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.85 2.09-1.81 2.73v2.27h2.93c1.71-1.58 2.69-3.9 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.93-2.27c-.81.55-1.85.87-3.03.87-2.33 0-4.31-1.58-5.02-3.7H.96v2.34C2.44 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.98 10.72A5.4 5.4 0 0 1 3.7 9c0-.6.1-1.18.28-1.72V4.94H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.06l3.02-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.6-2.6C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.94l3.02 2.34C4.69 5.16 6.67 3.58 9 3.58z"/></svg>
+      <span>Continuar com Google</span>
+    </button>
+    <div class="login-divider"><span>ou</span></div>
+
+    <form id="loginForm">
+      <div class="field"><label for="loginEmail">E-mail</label><input type="email" id="loginEmail" required autocomplete="username"></div>
+      <div class="field"><label for="loginSenha">Senha</label><input type="password" id="loginSenha" required autocomplete="current-password"></div>
+      <div class="field hidden" id="campoConfirmarSenha"><label for="confirmarSenha">Confirmar senha</label><input type="password" id="confirmarSenha" autocomplete="new-password"></div>
+      <div class="login-error" id="loginError"></div>
+      <div class="sync-modal-actions">
+        <button type="submit" class="btn-yes" id="btnLoginSubmit">Entrar</button>
+      </div>
+      <button type="button" class="login-forgot" id="btnEsqueciSenha">Esqueci minha senha</button>
+      <button type="button" class="login-forgot" id="linkAlternarAuth">Ainda não tenho conta — criar conta</button>
+    </form>
+  </div>
+</div>
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="dot"></span><span>Controle Financeiro</span>
+      <button class="sidebar-toggle" id="btnSidebarToggle" title="Expandir/recolher menu" aria-label="Expandir ou recolher menu">☰</button>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="ic">📊</span>Dashboard</button>
+      <button class="nav-item" data-view="lancamentos"><span class="ic">📝</span>Lançamentos</button>
+      <button class="nav-item" data-view="categorias"><span class="ic">🏷️</span>Categorias</button>
+      <button class="nav-item" data-view="divida"><span class="ic">💳</span>Dívida</button>
+      <button class="nav-item" data-view="config"><span class="ic">⚙️</span>Configurações</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sync-line"><span class="dot-status" id="syncDot"></span><span id="syncText">não conectado</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ===================== HEADER GLOBAL (aparece em todas as views) ===================== -->
+    <header class="app-header">
+      <div class="app-header-brand">
+        <div class="header-mark" aria-hidden="true">$</div>
+        <div class="app-header-copy">
+          <strong>Controle Financeiro</strong>
+          <span>visão clara para decisões melhores</span>
+        </div>
+      </div>
+      <div class="header-search">
+        <label for="headerSearch" class="sr-only">Buscar no controle financeiro</label>
+        <span aria-hidden="true">⌕</span>
+        <input type="search" id="headerSearch" placeholder="Buscar lançamentos..." autocomplete="off">
+        <kbd>Enter</kbd>
+      </div>
+      <div class="app-header-actions">
+        <div class="profile-menu">
+          <button class="profile-trigger" id="btnProfileMenu" aria-expanded="false" aria-haspopup="true">
+            <span class="profile-avatar" id="headerProfileAvatar">U</span>
+            <span class="profile-trigger-copy"><strong id="headerProfileName">Usuário</strong><small id="headerProfileEmail">conta</small></span>
+            <span class="profile-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="profile-dropdown hidden" id="profileDropdown" role="menu">
+            <div class="profile-dropdown-head">
+              <span class="profile-avatar large" id="dropdownProfileAvatar">U</span>
+              <div><strong id="dropdownProfileName">Usuário</strong><small id="dropdownProfileEmail">conta</small></div>
+            </div>
+            <div class="profile-dropdown-divider"></div>
+            <button class="profile-menu-item" id="btnEditProfile" type="button">◉ Editar perfil</button>
+            <button class="profile-menu-item" id="btnProfileConfig" type="button">⚙ Configurações</button>
+            <button class="profile-menu-item" id="btnProfileTheme" type="button"><span>◐</span><span id="profileThemeLabel">Usar tema escuro</span></button>
+            <div class="profile-dropdown-divider"></div>
+            <button class="profile-menu-item profile-menu-item-action" id="btnImportar" type="button">📂 Importar planilha</button>
+            <input type="file" id="inputImportar" accept=".xlsx" hidden>
+            <button class="profile-menu-item profile-menu-item-action" id="btnExport" type="button">⇩ Exportar cópia</button>
+            <button class="profile-menu-item danger" id="btnProfileLogout" type="button">↪ Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="modal-overlay" id="profileModal">
+      <div class="sync-modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+        <div class="modal-heading">
+          <div><h3 id="profileModalTitle">Editar perfil</h3><p>Atualize como seu nome aparece no aplicativo.</p></div>
+          <button class="modal-close" id="btnCloseProfile" type="button" aria-label="Fechar">×</button>
+        </div>
+        <div class="field"><label for="profileName">Nome</label><input type="text" id="profileName" maxlength="80" placeholder="Como você quer ser chamado?"></div>
+        <div class="profile-account-email" id="profileAccountEmail">conta</div>
+        <div class="profile-modal-message" id="profileModalMessage" role="status"></div>
+        <div class="profile-modal-actions">
+          <button class="btn btn-ghost" id="btnResetPassword" type="button">Enviar redefinição de senha</button>
+          <button class="btn btn-primary" id="btnSaveProfile" type="button">Salvar perfil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lembrete: todo início de mês, exportar uma cópia da planilha por segurança -->
+    <div class="sync-banner lembrete-export-banner" id="lembreteExportBanner">
+      <span>💾</span>
+      <span>Lembrete do mês: já exportou uma cópia de segurança dos seus dados?</span>
+      <div class="lembrete-export-actions">
+        <button type="button" id="btnLembreteExportarAgora">Exportar agora</button>
+        <button type="button" id="btnLembreteDispensar">Agora não</button>
+      </div>
+    </div>
+
+    <!-- ===================== DASHBOARD (visão anual) ===================== -->
+    <div id="viewDashboard">
+      <div class="sync-banner" id="syncBanner"><span>⚠</span><span id="syncBannerText">Erro ao salvar automaticamente — reconecte o arquivo.</span></div>
+      <div class="page-header">
+        <div><h1>Dashboard</h1><div class="sub" id="subtitleAnual">carregando…</div></div>
+        <div class="filters"><select id="selPeriodoDashboard" class="pill">
+          <option value="ano">Ano inteiro</option>
+          <option value="q1">1º trimestre</option><option value="q2">2º trimestre</option>
+          <option value="q3">3º trimestre</option><option value="q4">4º trimestre</option>
+          <option value="m1">Janeiro</option><option value="m2">Fevereiro</option><option value="m3">Março</option>
+          <option value="m4">Abril</option><option value="m5">Maio</option><option value="m6">Junho</option>
+          <option value="m7">Julho</option><option value="m8">Agosto</option><option value="m9">Setembro</option>
+          <option value="m10">Outubro</option><option value="m11">Novembro</option><option value="m12">Dezembro</option>
+        </select><select id="selAnoAnual" class="pill"></select></div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi g-receita"><div class="lbl">Receita no ano</div><div class="val" id="anReceita">R$ 0</div></div>
+        <div class="kpi g-despesa"><div class="lbl">Despesa no ano</div><div class="val" id="anDespesa">R$ 0</div></div>
+        <div class="kpi g-dizimo"><div class="lbl">Dízimo no ano</div><div class="val" id="anDizimo">R$ 0</div></div>
+        <div class="kpi g-invest"><div class="lbl">Investimento no ano</div><div class="val" id="anInvest">R$ 0</div></div>
+        <div class="kpi g-saldo"><div class="lbl">Saldo no ano</div><div class="val" id="anSaldo">R$ 0</div></div>
+      </div>
+
+      <div class="dashboard-monitor-grid">
+        <div class="panel dashboard-budget-panel">
+          <h2>Orçamento x realizado <span class="bi-kicker" id="dashboardBudgetLabel">período selecionado</span></h2>
+          <div id="dashboardBudgetList"></div>
+          <div class="empty" id="dashboardBudgetEmpty" style="display:none;">Defina orçamentos por categoria em Configurações para acompanhar este período.</div>
+        </div>
+        <div class="panel dashboard-forecast-panel">
+          <h2>Projeção financeira <span class="bi-kicker">ritmo atual</span></h2>
+          <div class="forecast-grid">
+            <div class="bi-stat"><div class="lbl">Saldo projetado no mês</div><div class="val" id="dashSaldoProjetado">R$ 0</div></div>
+            <div class="bi-stat"><div class="lbl">Média de despesas · 3 meses</div><div class="val" id="dashMediaDespesas">R$ 0</div></div>
+            <div class="bi-stat"><div class="lbl">Média de receitas · 3 meses</div><div class="val" id="dashMediaReceitas">R$ 0</div></div>
+          </div>
+          <div class="forecast-alert" id="dashForecastAlert"></div>
+        </div>
+      </div>
+
+      <!-- Bloco de dívida — separado dos gráficos de propósito, é só um retrato do saldo devedor. -->
+      <div class="panel divida-resumo-panel" style="margin-bottom:1.2rem;">
+        <h2>💳 Dívida <span class="bi-kicker">valor à parte, não entra nos gráficos acima</span></h2>
+        <div class="divida-resumo-grid">
+          <div class="divida-resumo-stat">
+            <div class="lbl">Dívida atual (saldo devedor)</div>
+            <div class="val" id="dashDividaAtual">R$ 0</div>
+          </div>
+          <div class="divida-resumo-stat">
+            <div class="lbl">Já abatido (total pago)</div>
+            <div class="val ok" id="dashDividaAbatida">R$ 0</div>
+          </div>
+          <div class="divida-resumo-stat">
+            <div class="lbl">Total já comprado/gerado</div>
+            <div class="val" id="dashDividaTotalGerado">R$ 0</div>
+          </div>
+        </div>
+        <div class="divida-resumo-bar">
+          <div class="divida-resumo-bar-fg" id="dashDividaBarFg"></div>
+        </div>
+        <div class="sub" id="dashDividaPct">0% já quitado</div>
+      </div>
+
+      <div class="dashboard-charts-row">
+        <div class="panel" style="margin-bottom:1.2rem;">
+          <h2>Receita x Despesa por mês <span class="muted" id="anualChartSub"></span></h2>
+          <div class="chart-wrap" id="anualChart"></div>
+          <div class="legend">
+            <span class="legend-item"><span class="sw" style="background:var(--receita-1);"></span>Receita</span>
+            <span class="legend-item"><span class="sw" style="background:var(--despesa-1);"></span>Despesa</span>
+            <span class="legend-item"><span class="sw" style="background:var(--saldo-1);"></span>Saldo acumulado</span>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:1.2rem;">
+          <h2>Comportamento mensal <span class="muted" id="biFluxoSub"></span></h2>
+          <div class="mini-chart" id="biFluxoMensal"></div>
+        </div>
+      </div>
+
+      <div class="insight-grid">
+        <div class="panel bi-panel">
+          <h2>Composição financeira <span class="bi-kicker">visão anual</span></h2>
+          <div class="donut-body" id="biComposicaoAnual"></div>
+          <div class="bi-summary">
+            <div class="bi-stat"><div class="lbl">Taxa de investimento</div><div class="val" id="biInvestRate">0%</div></div>
+            <div class="bi-stat"><div class="lbl">Margem de saldo</div><div class="val" id="biSaldoRate">0%</div></div>
+            <div class="bi-stat"><div class="lbl">Maior despesa</div><div class="val" id="biMaiorDespesa">—</div></div>
+          </div>
+        </div>
+        <div class="panel bi-panel">
+          <h2>Onde o dinheiro foi gasto <span class="bi-kicker">despesas do ano</span></h2>
+          <div id="biCategorias" class="bar-list"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1.2rem;">
+        <h2>Detalhe mês a mês</h2>
+        <div class="tablewrap">
+          <table class="month-table">
+            <thead><tr><th>Mês</th><th>Receita</th><th>Despesa</th><th>Dízimo</th><th>Investimento</th><th>Saldo</th></tr></thead>
+            <tbody id="tbodyAnual"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===================== LANÇAMENTOS (mensal) ===================== -->
+    <div id="viewLancamentos" class="hidden">
+      <div class="page-header">
+        <div><h1>Lançamentos</h1><div class="sub" id="subtitle">carregando…</div></div>
+        <div class="filters">
+          <select id="selMes" class="pill"></select>
+          <select id="selAno" class="pill"></select>
+        </div>
+      </div>
+
+      <div class="kpis kpis-6">
+        <div class="kpi g-receita"><div class="lbl">Receita</div><div class="val" id="cardReceita">R$ 0</div><div id="deltaReceita"></div></div>
+        <div class="kpi g-despesa"><div class="lbl">Despesa fixa</div><div class="val" id="cardDespesaFixa">R$ 0</div><div id="deltaDespesaFixa"></div></div>
+        <div class="kpi g-divida"><div class="lbl">Despesa variável</div><div class="val" id="cardDespesaVar">R$ 0</div><div id="deltaDespesaVar"></div></div>
+        <div class="kpi g-dizimo"><div class="lbl" id="lblDizimoCard">Dízimo</div><div class="val" id="cardDizimo">R$ 0</div></div>
+        <div class="kpi g-invest"><div class="lbl" id="lblInvestCard">Investimento</div><div class="val" id="cardInvest">R$ 0</div></div>
+        <div class="kpi g-saldo kpi-destaque"><div class="lbl">Saldo final</div><div class="val" id="cardSaldo">R$ 0</div><div id="deltaSaldo"></div><div class="kpi-split" id="taxaPoupanca"></div></div>
+      </div>
+
+      <div class="panel split-pessoas-panel" id="splitPessoasPanel" style="margin-bottom:1.2rem;">
+        <h2 style="margin:0 0 .8rem;">Split por pessoa <span class="muted">— quem lançou o quê neste mês</span></h2>
+        <div class="split-pessoas-grid" id="splitPessoasGrid"></div>
+      </div>
+
+      <div class="lancamento-workspace">
+        <div class="lancamento-insights">
+          <div class="panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:.9rem;">
+              <h2 style="margin:0;">Raio-X do mês <span class="muted" id="raioXMesLabel"></span></h2>
+              <span class="health-badge" id="healthBadge">—</span>
+            </div>
+            <div class="insight-list" id="insightList"></div>
+          </div>
+
+          <div class="lancamento-chart-header">
+            <div><h2>Para onde o dinheiro foi <span class="muted" id="donutMesLabel"></span></h2>
+            <div class="sub">composição do mês selecionado, categoria por categoria</div></div>
+          </div>
+          <div class="donut-grid lancamento-donuts">
+            <div class="panel">
+              <h2>Composição do mês</h2>
+              <div class="donut-body" id="donutComposicao"></div>
+            </div>
+            <div class="panel">
+              <h2>Despesas fixas por categoria</h2>
+              <div class="donut-body" id="donutFixas"></div>
+            </div>
+            <div class="panel">
+              <h2>Despesas variáveis por categoria</h2>
+              <div class="donut-body" id="donutVariaveis"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel lancamento-form-panel">
+          <h2 id="formTitle">Novo lançamento</h2>
+          <div class="form-intro">Registre o essencial. Novos lançamentos entram como <strong>Pago</strong>.</div>
+          <form id="form">
+            <div class="form-section compact-section">
+              <div class="form-section-title"><span>1</span><div><strong>O que foi lançado?</strong><small>Tipo, categoria e descrição.</small></div></div>
+              <div class="field"><label for="fTipo">Tipo</label>
+                <select id="fTipo">
+                  <option value="Receita">Receita</option>
+                  <option value="Despesa Fixa">Despesa fixa</option>
+                  <option value="Despesa Variável">Despesa variável</option>
+                </select>
+              </div>
+              <div class="field"><label for="fCategoria">Categoria</label><select id="fCategoria"></select></div>
+              <div class="field"><label for="fDescricao">Descrição <span class="muted">(opcional)</span></label><input type="text" id="fDescricao" placeholder="Ex: compras do mês"></div>
+            </div>
+
+            <div class="form-section compact-section">
+              <div class="form-section-title"><span>2</span><div><strong>Quando e quanto?</strong><small>Data e competência do lançamento.</small></div></div>
+              <div class="field"><label for="fData" id="lblData">Data</label><input type="date" id="fData" required></div>
+              <div class="field hidden" id="wrapMesRef">
+                <label for="fMesRef">Competência <span class="muted">(mês do resumo)</span></label>
+                <div class="row2"><select id="fMesRef"></select><select id="fAnoRef"></select></div>
+              </div>
+              <div class="field"><label for="fValor">Valor (R$)</label><input type="number" id="fValor" step="0.01" min="0" placeholder="0,00"></div>
+            </div>
+
+            <div class="form-section compact-section">
+              <div class="form-section-title"><span>3</span><div><strong>Pagamento</strong><small>Pago por padrão. Altere apenas se não for pagar agora.</small></div></div>
+              <div class="field"><label for="fPago">Status do pagamento</label>
+                <select id="fPago"><option value="Sim">Pago</option><option value="Não">Não pago</option></select>
+              </div>
+              <div class="field hidden" id="wrapDataPagamento"><label for="fDataPagamento">Data em que foi pago</label><input type="date" id="fDataPagamento"></div>
+            </div>
+
+            <button type="button" class="mais-opcoes-toggle" id="btnMaisOpcoes">+ Mais opções <span class="muted">(pessoa, banco, observação)</span></button>
+
+            <div class="form-section compact-section extra-fields hidden" id="extraFieldsSection">
+              <div class="form-section-title"><span>4</span><div><strong>Onde e quem?</strong><small>Origem/destino do lançamento.</small></div></div>
+              <div class="row2"><div class="field"><label for="fPessoa">Pessoa</label><select id="fPessoa"></select></div><div class="field"><label for="fBanco">Banco</label><select id="fBanco"></select></div></div>
+              <div class="field"><label for="fObs">Observação <span class="muted">(opcional)</span></label><input type="text" id="fObs" placeholder="Alguma informação adicional"></div>
+            </div>
+
+            <div class="err" id="formErr">Preencha a data e o valor.</div>
+            <button type="submit" class="btn btn-primary" id="btnSalvarLanc">Salvar lançamento</button>
+            <button type="button" class="btn btn-ghost btn-block hidden" id="btnCancelarEdicao" style="margin-top:.5rem;">Cancelar edição</button>
+          </form>
+        </aside>
+      </div>
+
+      <div class="panel lancamentos-table-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <h2 id="tableTitle">Lançamentos do mês</h2>
+          <span class="muted">Histórico do período selecionado</span>
+        </div>
+        <div class="busca-lancamentos">
+          <input type="text" id="buscaLancamentos" placeholder="Buscar por descrição, categoria, pessoa ou valor...">
+        </div>
+        <div class="tablewrap">
+          <table><thead><tr><th>Data</th><th>Quem</th><th>Tipo</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody></table>
+          <div class="empty" id="emptyMsg" style="display:none;">Nenhum lançamento neste mês ainda.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CATEGORIAS ===================== -->
+    <div id="viewCategorias" class="hidden">
+      <div class="page-header">
+        <div><h1>Categorias</h1><div class="sub">veja onde o dinheiro está indo</div></div>
+        <div class="filters">
+          <select id="catTipoFiltro" class="pill">
+            <option value="Todas">Todas as despesas</option>
+            <option value="Despesa Fixa">Só despesas fixas</option>
+            <option value="Despesa Variável">Só despesas variáveis</option>
+          </select>
+          <select id="catAnoFiltro" class="pill"></select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>Ranking de categorias</h2>
+          <div id="catRanking"></div>
+          <div class="empty" id="catEmpty" style="display:none;">Nenhuma despesa registrada ainda.</div>
+        </div>
+        <div class="panel">
+          <h2 id="catDetailTitle">Selecione uma categoria</h2>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Data</th><th>Quem</th><th>Descrição</th><th>Valor</th></tr></thead>
+              <tbody id="catDetailBody"></tbody>
+            </table>
+            <div class="empty" id="catDetailEmpty">Clique em uma categoria ao lado para ver os lançamentos.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.2rem;">
+        <h2>Orçamento do mês atual <span class="muted" id="orcMesLabel"></span></h2>
+        <div id="orcamentoWrap"></div>
+        <div class="empty" id="orcamentoEmpty" style="display:none;">Defina orçamentos por categoria na página de Configurações para acompanhar aqui.</div>
+      </div>
+    </div>
+
+    <!-- ===================== DÍVIDA ===================== -->
+    <div id="viewDivida" class="hidden">
+      <div class="page-header">
+        <div><h1>Dívida</h1><div class="sub">compras que aumentam, pagamentos que abatem</div></div>
+        <div class="filters"><select id="dividaEtiquetaFiltro" class="pill"><option value="Todas">Todas as etiquetas</option></select></div>
+      </div>
+
+      <div class="kpis" style="grid-template-columns:1fr 1fr;">
+        <div class="kpi g-divida"><div class="lbl" id="lblDividaAtual">Dívida atual</div><div class="val" id="cardDividaAtual" style="font-size:28px;">R$ 0</div></div>
+        <div class="kpi g-saldo"><div class="lbl">Projeção de quitação</div><div class="val" id="cardProjecao" style="font-size:16px;">—</div></div>
+      </div>
+      <div class="panel" id="painelProjecao" style="margin-bottom:1.2rem;display:none;">
+        <h2>Como chegamos nessa projeção</h2>
+        <div class="sub" id="projecaoDetalhe"></div>
+      </div>
+
+      <div class="panel divida-planejamento-panel" style="margin-bottom:1.2rem;">
+        <h2>Planejamento de quitação <span class="bi-kicker">cenários editáveis</span></h2>
+        <div class="row2 debt-plan-fields">
+          <div class="field"><label for="dDataAlvo">Meta de quitação</label><input type="date" id="dDataAlvo"></div>
+          <div class="field"><label for="dPagamentoMinimo">Pagamento mínimo mensal</label><input type="number" id="dPagamentoMinimo" min="0" step="0.01" placeholder="R$ 0,00"></div>
+        </div>
+        <div class="row2 debt-plan-fields">
+          <div class="field"><label for="dJurosMensal">Juros mensal (%)</label><input type="number" id="dJurosMensal" min="0" step="0.01" placeholder="0,00"></div>
+          <div class="field debt-plan-action"><button class="btn btn-primary" id="btnSalvarPlanejamento" type="button">Salvar planejamento</button></div>
+        </div>
+        <div class="debt-scenarios" id="dividaCenarios"></div>
+        <div class="debt-projection-chart" id="dividaProjecaoGrafico"></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1.2rem;">
+        <h2>Saldo por etiqueta</h2>
+        <div id="dividaPorEtiqueta"></div>
+        <div class="empty" id="dividaEtiquetaEmpty" style="display:none;">Adicione uma etiqueta (ex: Reforma, Casamento) aos seus registros para ver aqui.</div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>Novo registro</h2>
+          <form id="formDivida">
+            <div class="field"><label for="dTipo">Tipo</label>
+              <select id="dTipo">
+                <option value="Compra">Compra (aumenta a dívida)</option>
+                <option value="Pagamento">Pagamento (abate a dívida)</option>
+              </select>
+            </div>
+            <div class="row2">
+              <div class="field"><label for="dData">Data</label><input type="date" id="dData" required></div>
+              <div class="field"><label for="dValor">Valor (R$)</label><input type="number" id="dValor" step="0.01" min="0" placeholder="0,00"></div>
+            </div>
+            <div class="field"><label for="dDescricao">Descrição</label><input type="text" id="dDescricao" placeholder="Ex: sofá, parcela do mês..."></div>
+            <div class="field"><label for="dEtiqueta">Etiqueta <span class="muted">(opcional — ex: Reforma, Casamento)</span></label>
+              <input type="text" id="dEtiqueta" list="dEtiquetaList" placeholder="Ex: Reforma">
+              <datalist id="dEtiquetaList"></datalist>
+            </div>
+            <div class="err" id="dividaErr">Preencha a data e o valor.</div>
+            <button type="submit" class="btn btn-primary">Salvar registro</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>Lançamentos da dívida</h2>
+          <div class="busca-lancamentos">
+            <input type="text" id="buscaDivida" placeholder="Buscar por descrição, tipo, etiqueta ou valor...">
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Data</th><th>Tipo</th><th>Etiqueta</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+              <tbody id="tbodyDivida"></tbody>
+            </table>
+            <div class="empty" id="emptyDividaMsg" style="display:none;">Nenhum registro ainda.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.2rem;">
+        <h2>Saldo devedor mês a mês</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Mês</th><th>Compras</th><th>Pagamento</th><th>Saldo do mês</th><th>Saldo acumulado</th></tr></thead>
+            <tbody id="tbodyResumoDivida"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CONFIGURAÇÕES ===================== -->
+    <div id="viewConfig" class="hidden">
+      <div class="page-header">
+        <div><h1>Configurações</h1><div class="sub">ajuste os percentuais e as listas usadas nos formulários</div></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:1.1rem;">
+        <h2>Percentuais da regra financeira</h2>
+        <div class="row2" style="max-width:420px;">
+          <div class="field"><label>Dízimo (%)</label><input type="number" id="cfgDizimo" step="0.1" min="0" max="100"></div>
+          <div class="field"><label>Investimento (%)</label><input type="number" id="cfgInvest" step="0.1" min="0" max="100"></div>
+        </div>
+        <button class="btn btn-primary" style="width:auto;" id="btnSaveConfig">Salvar percentuais</button>
+        <div class="sub" style="margin-top:.6rem;">O investimento é calculado sobre o valor já descontado o dízimo, não sobre a receita bruta.</div>
+      </div>
+
+      <div class="config-grid">
+        <div class="panel">
+          <h2>Pessoas</h2>
+          <div class="chiplist" id="listPessoas"></div>
+          <div class="add-row"><input type="text" id="addPessoa" placeholder="Nome da pessoa"><button id="btnAddPessoa">Adicionar</button></div>
+        </div>
+        <div class="panel">
+          <h2>Bancos / locais de pagamento</h2>
+          <div class="chiplist" id="listBancos"></div>
+          <div class="add-row"><input type="text" id="addBanco" placeholder="Ex: Nubank Pedro"><button id="btnAddBanco">Adicionar</button></div>
+        </div>
+        <div class="panel">
+          <h2>Categorias de receita</h2>
+          <div class="chiplist" id="listCatReceita"></div>
+          <div class="add-row"><input type="text" id="addCatReceita" placeholder="Ex: Freelance"><button id="btnAddCatReceita">Adicionar</button></div>
+        </div>
+        <div class="panel">
+          <h2>Categorias de despesa fixa</h2>
+          <div class="chiplist" id="listCatDespFixa"></div>
+          <div class="add-row"><input type="text" id="addCatDespFixa" placeholder="Ex: Seguro"><button id="btnAddCatDespFixa">Adicionar</button></div>
+        </div>
+        <div class="panel">
+          <h2>Categorias de despesa variável</h2>
+          <div class="chiplist" id="listCatDespVar"></div>
+          <div class="add-row"><input type="text" id="addCatDespVar" placeholder="Ex: Farmácia"><button id="btnAddCatDespVar">Adicionar</button></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.1rem;">
+        <h2>Orçamento mensal por categoria <span class="muted">— opcional, deixe em branco para não acompanhar</span></h2>
+        <div id="orcamentoConfigWrap"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/00-state.js"></script>
+<script src="js/01-firebase-config.js?v=20260916"></script>
+<script src="js/02-auth.js?v=20260916"></script>
+<script src="js/03-utils.js?v=20260916"></script>
+<script src="js/04-nav.js"></script>
+<script src="js/05-persistencia.js"></script>
+<script src="js/06-selects.js"></script>
+<script src="js/07-config-page.js"></script>
+<script src="js/08-calculo-mensal.js?v=20260916"></script>
+<script src="js/10-dashboard.js?v=20260922"></script>
+<script src="js/11-categorias.js"></script>
+<script src="js/12-divida.js?v=20260916"></script>
+<script type="module" src="js/13-export-excel.js?v=20260916"></script>
+<script src="js/14-tema.js?v=20260916"></script>
+<script src="js/15-reminder.js?v=20260916"></script>
+<script src="js/16-init.js"></script>
+</body>
+</html>

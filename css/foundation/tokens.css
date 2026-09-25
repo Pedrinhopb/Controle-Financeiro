@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --sidebar-1:#FFFFFF; --sidebar-2:#F3F4FA;
+  --sidebar-text:#6B7093; --sidebar-text-active:#1B1E30;
+  --sidebar-border:#E6E8F2; --sidebar-hover:rgba(109,92,224,.08);
+  --sidebar-button-bg:#FFFFFF; --sidebar-button-border:#E6E8F2; --sidebar-button-text:#1B1E30;
+  --sidebar-sync:#6B7093;
+  --accent:#6D5CE0; --accent-soft:rgba(109,92,224,.18);
+  --receita-1:#16C98D; --receita-2:#0E9E6C;
+  --despesa-1:#F14E63; --despesa-2:#D22F44;
+  --dizimo-1:#9B6BF0; --dizimo-2:#7443D6;
+  --invest-1:#1FC3D1; --invest-2:#0E96A3;
+  --saldo-1:#4C7CF0; --saldo-2:#2F58C4;
+  --divida-1:#F5A623; --divida-2:#D6841A;
+  --bg:#F3F4FA; --surface:#FFFFFF; --surface-2:#FAFAFE;
+  --border:#E6E8F2; --track-bg:#F0F1F8; --scrollbar:#D3D6E6;
+  --text-primary:#1B1E30; --text-secondary:#6B7093; --text-muted:#9CA0BE;
+  --font-display:'Space Grotesk', sans-serif; --font-body:'Inter', sans-serif;
+  --radius-lg:18px; --radius-md:12px; --radius-sm:8px;
+}
+
+[data-theme="dark"]{
+  --bg:#0F111C; --surface:#191C2E; --surface-2:#222540;
+  --border:rgba(255,255,255,.09); --track-bg:rgba(255,255,255,.08); --scrollbar:#3A3E5C;
+  --text-primary:#EDEFFA; --text-secondary:#A7ABCC; --text-muted:#7D81A3;
+  --sidebar-1:#171B34; --sidebar-2:#0D0F20;
+  --sidebar-text:#AEB3D6; --sidebar-text-active:#FFFFFF;
+  --sidebar-border:rgba(255,255,255,.09); --sidebar-hover:rgba(255,255,255,.06);
+  --sidebar-button-bg:rgba(255,255,255,.07); --sidebar-button-border:rgba(255,255,255,.09); --sidebar-button-text:#E7E9F5;
+  --sidebar-sync:#9498BD;
+}

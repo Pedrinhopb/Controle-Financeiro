@@ -1,0 +1,27 @@
+{
+  "name": "controle-financeiro",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && firebase deploy --only hosting,firestore",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "typecheck:watch": "tsc --noEmit --watch",
+    "validate": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.1",
+    "typescript": "^5.9.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "firebase": "^12.19.0",
+    "xlsx": "^0.18.5"
+  }
+}

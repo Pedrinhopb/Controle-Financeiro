@@ -1,0 +1,14 @@
+{
+  "name": "Controle Financeiro",
+  "short_name": "Controle Fin.",
+  "description": "Controle financeiro pessoal — receitas, despesas, dízimo, investimento e dívida.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0F111C",
+  "theme_color": "#171B34",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
